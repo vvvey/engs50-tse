@@ -1,0 +1,20 @@
+# Ignore binary files
+*
+!*.*
+!*/
+
+# Allow Makefile
+!Makefile
+
+# Not ignore: .c, .h, Makefile
+# Object files and libraries
+*.o
+
+# Emacs Save Files
+*~
+\#*\#
+.\#*
+
+# Debugging Symbols
+*.dSYM
+
