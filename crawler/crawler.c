@@ -30,6 +30,24 @@ bool compareURL(webpage_t *wp, char* url) {
 	return strcmp(urlp, url) == 0;
 }
 
+int32_t pagesave(webpage_t *pagep, int id, char *dirname) {
+	char* urlp = webpage_getURL(pagep);
+	int depth = webpage_getDepth(pagep);
+	char* html = webpage_getHTML(pagep);
+	int len = strlen(html);
+
+	char fp[300];
+	sprintf(fp, "%s/%d", dirname, id);
+	FILE *fl = fopen(fp, "w");
+
+	if (fl == NULL) {
+		printf("Error opening file");
+	}
+	
+	fprintf(fl, "%s\n%d\n%d\n%s", urlp, depth, len, html);
+	fclose(fl);
+}
+
 
 int  main() {
 	char url[] = "https://thayer.github.io/engs50/"; 
@@ -47,6 +65,8 @@ int  main() {
 		free(homepage_p);
 		exit(EXIT_FAILURE);
 	}
+
+	pagesave(homepage_p, 1, "pages");
 
 	char* html = webpage_getHTML(homepage_p);
 	//printf("[+] Successfully got webpage\n");
