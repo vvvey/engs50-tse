@@ -26,7 +26,7 @@ void printURL(webpage_t *wp) {
 	int depth = webpage_getDepth(wp);
 
 	printf("Depth: %d, url: %s \n", depth, urlp);
-	free(urlp);
+	//	free(urlp);
 }
 
 bool compareURL(webpage_t *wp, char* url) {
@@ -50,6 +50,7 @@ int32_t pagesave(webpage_t *pagep, int id, char *dirname) {
 	
 	fprintf(fl, "%s\n%d\n%d\n%s", urlp, depth, len, html);
 	fclose(fl);
+
 	return 0;
 }
 
@@ -109,7 +110,6 @@ int  main(int argc, char *argv[]) {
 		// Save page
 		printf("Saving: %s \n", webpage_getURL(currp));
 		pagesave(currp, file_id, pagedir);
-
 		int currdepth = webpage_getDepth(currp);
 
 		int pos = 0;
@@ -121,8 +121,10 @@ int  main(int argc, char *argv[]) {
 				webpage_t *wp = webpage_new(result, currdepth + 1, NULL);
 
 				if (hsearch(wp_hp, (bool (*)(void*, const void*))compareURL, result, strlen(result)) == NULL) {
-						qput(wp_qp, wp);
-						hput(wp_hp, wp, result, strlen(result));
+					qput(wp_qp, wp);
+					hput(wp_hp, wp, result, strlen(result));
+				} else {
+					webpage_delete(wp);
 				}
 			} 
 
@@ -132,12 +134,15 @@ int  main(int argc, char *argv[]) {
 		file_id = file_id + 1;
 		currp = qget(wp_qp);
 	}
-	free(currp);
+
+	//	qapply(wp_qp, webpage_delete);
+	happly(wp_hp, webpage_delete);
+	webpage_delete(currp);
 	
 	qclose(wp_qp);
 	hclose(wp_hp);
 	
-	free(homepage_p);
-
+	//	webpage_delete(homepage_p);
+	
 	exit(EXIT_SUCCESS);
 }
