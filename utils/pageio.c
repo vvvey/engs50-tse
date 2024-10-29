@@ -11,6 +11,8 @@
 
 #include <pageio.h>
 #include <webpage.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 int32_t pagesave(webpage_t *pagep, int id, char *dirname) {
 	char* urlp = webpage_getURL(pagep);
@@ -26,12 +28,53 @@ int32_t pagesave(webpage_t *pagep, int id, char *dirname) {
 		printf("Error opening file");
 	}
 	
-	fprintf(fl, "%s\n%d\n%d\n%s", urlp, depth, len, html);
+	fprintf(fl,"%s\n%d\n%d\n%s", urlp, depth, len, html);
 	fclose(fl);
 
 	return 0;
 }
 
 webpage_t *pageload(int id, char *dirnm) {
-	return NULL;
+  char fp[256];
+  snprintf(fp, sizeof(fp), "%s/%d", dirnm, id);
+
+  FILE *fl = fopen(filepath, "r");
+  if (!fl) return NULL;
+
+  char url[1024];
+
+	if (fscanf(fl, "%1023s\n", url) != 1) {
+    fclose(fl);
+    return NULL;
+  }
+
+  int depth;
+  int html_len;
+
+	if (fscanf(fl, "%d\n%d\n", &depth, &html_len) != 2) {
+    fclose(fl);
+    return NULL;
+  }
+
+  char *html = malloc(html_len + 1);
+
+	if (!html) {
+    fclose(fl);
+    return NULL;
+  }
+		
+  fread(html, 1, html_len, fl);
+  html[html_len] = '\0';
+
+  fclose(fl);
+
+  webpage_t *page = webpage_new(url, depth, html);
+
+	if (!page) {
+    free(html);
+    return NULL;
+  }
+
+  return page;
 }
+
