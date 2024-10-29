@@ -38,7 +38,7 @@ webpage_t *pageload(int id, char *dirnm) {
   char fp[256];
   snprintf(fp, sizeof(fp), "%s/%d", dirnm, id);
 
-  FILE *fl = fopen(filepath, "r");
+  FILE *fl = fopen(fp, "r");
   if (!fl) return NULL;
 
   char url[1024];
@@ -56,23 +56,17 @@ webpage_t *pageload(int id, char *dirnm) {
     return NULL;
   }
 
-  char *html = malloc(html_len + 1);
-
-	if (!html) {
-    fclose(fl);
-    return NULL;
-  }
-		
-  fread(html, 1, html_len, fl);
-  html[html_len] = '\0';
-
-  fclose(fl);
-
+	char line[1024];
+	char html[html_len * 1024];
+	
+	while (fscanf(fl,"%1023s\n", line) != 1) {
+		strcat(html, line);
+	}
+	
   webpage_t *page = webpage_new(url, depth, html);
 
 	if (!page) {
-    free(html);
-    return NULL;
+     return NULL;
   }
 
   return page;
