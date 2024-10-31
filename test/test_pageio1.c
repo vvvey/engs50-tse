@@ -1,7 +1,7 @@
 /* 
  * pageio.c --- 
  * 
- * Author: 
+ * Author: Vuthy Vey
  * Created: 10-24-2024
  * Version: 1.0
  * 
@@ -38,11 +38,11 @@ int main() {
 
     pagesave(hp, 1, "pages");
     webpage_t *new_hp = pageload(1, "pages");
-
-    if (new_hp == NULL || strcmp(webpage_getHTML(hp), webpage_getHTML(new_hp)) != 0 || strcmp(webpage_getURL(hp), webpage_getURL(new_hp)) != 0 || webpage_getDepth(hp) == webpage_getDepth(new_hp)) {
+   
+    if (new_hp == NULL || strcmp(webpage_getHTML(hp), webpage_getHTML(new_hp)) != 0 || strcmp(webpage_getURL(hp), webpage_getURL(new_hp)) != 0 || webpage_getDepth(hp) != webpage_getDepth(new_hp)) {
         webpage_delete(hp);
         webpage_delete(new_hp);
-        
+
         exit(EXIT_FAILURE);
     } else {
         webpage_delete(hp);
