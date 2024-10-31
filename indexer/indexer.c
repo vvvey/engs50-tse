@@ -12,9 +12,25 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+
 #include <pageio.h>
 #include <webpage.h>
+#include <hash.h>
 
+int total_count = 0;
+
+typedef struct {
+    int count;
+    char *word; // normalized word
+} index_t;
+
+bool compareWord(index_t *ip, char* word) {
+	return strcmp(ip->word, word) == 0;
+}
+
+void countTotal(index_t *ip) {
+    total_count = total_count + ip->count;
+}
 
 int NormalizeWord(char *sp) {
     if (strlen(sp) < 4) { 
@@ -36,15 +52,32 @@ int main() {
     // webpage_fetch(wp);
 
     webpage_t *wp = pageload(1, "../crawler/pages");
+    hashtable_t *index_p = hopen(100);
 
-    char *s;
+
+    char *word;
     int pos = 0;
-    while ((pos = webpage_getNextWord(wp, pos, &s)) > 0) {
+    while ((pos = webpage_getNextWord(wp, pos, &word)) > 0) {
 
-        if (NormalizeWord(s) == 0) {printf("%s \n", s);}
- 
-        free(s);
-    }`
+        if (NormalizeWord(word) == 0) {
+            printf("%s \n", word);
+
+            index_t *elementp = hsearch(index_p, (bool (*)(void*, const void*))compareWord, word, strlen(word));
+            if (elementp == NULL) { // Word doesn't exist in hash table
+                index_t *ip = (index_t*)malloc(sizeof(index_t));
+                ip->count = 1;
+                ip->word = word;
+                hput(index_p, ip, word, strlen(word)); 
+			} else {
+                elementp->count = (elementp->count)+1; // Word exist in hash table so increment count by 1
+                free(word);
+			}
+        }   
+    }
+
+    happly(index_p, (void (*)(void *))countTotal );
+    printf("Total %d \n", total_count);
+    
     
     webpage_delete(wp);
     exit(EXIT_SUCCESS);
