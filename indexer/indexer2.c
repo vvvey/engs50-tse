@@ -64,14 +64,17 @@ int NormalizeWord(char *sp) {
 	return 0;
 }
 
-int main() {
-  webpage_t *wp = pageload(1, "../crawler/pages");
+
+int index(int doc_id) {
+	char *page_dir = "../crawler/pages";
+	
+  webpage_t *wp = pageload(doc_id, page_dir);
   hashtable_t *index_p = hopen(100);
   char *word;
   int pos = 0;
-
+	
   while ((pos = webpage_getNextWord(wp, pos, &word)) > 0) {
-    if (NormalizeWord(word) == 0) {
+		if (NormalizeWord(word) == 0) {
       printf("%s \n", word);
 
 			index_t *elementp = hsearch(index_p, (bool (*)(void*, const void*))compareWord, word, strlen(word));
@@ -90,7 +93,7 @@ int main() {
 
         hput(index_p, ip, word, strlen(word));
       } else {
-        doc_t *docp = qsearch(elementp->doc_queue, (bool (*)(void*, const void*))compareDocID, &doc_id);
+			  doc_t *docp = qsearch(elementp->doc_queue, (bool (*)(void*, const void*))compareDocID, &doc_id);
 
         if (docp == NULL) {
           doc_t *new_docp = (doc_t*)malloc(sizeof(doc_t));
@@ -108,9 +111,22 @@ int main() {
   }
 
   happly(index_p, (void (*)(void *))countTotal);
+
   printf("Total %d \n", total_count);
 
   webpage_delete(wp);
   hclose(index_p);
-  exit(EXIT_SUCCESS);
+  return total_count;
+}
+
+int main(int argc, char *argv[]) {
+	int num_words = 0;
+	int n = strtoul(argv[1], NULL, 10);
+
+	while (n > 0) {
+		num_words += index(n);
+		n --;
+	}
+
+	printf("TOTAL WORDS %d", num_words);
 }
