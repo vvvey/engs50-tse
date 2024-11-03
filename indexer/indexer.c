@@ -29,7 +29,7 @@ bool compareWord(index_t *ip, char* word) {
 }
 
 void countTotal(index_t *ip) {
-    total_count = total_count + ip->count;
+    total_count += ip->count;
 }
 
 int NormalizeWord(char *sp) {
