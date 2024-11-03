@@ -1,6 +1,6 @@
 CFLAGS=-Wall -pedantic -std=c11 -g
 
-OFILES=queue.o hash.o webpage.o pageio.o
+OFILES=queue.o hash.o webpage.o pageio.o indexio.o
 
 # Generate Object Files
 all: $(OFILES)
@@ -17,6 +17,9 @@ webpage.o: webpage.c webpage.h
 
 pageio.o: pageio.c pageio.h
 	gcc $(CFLAGS) -I./ -c pageio.c
+
+indexio.o: indexio.c indexio.h
+	gcc $(CFLAGS) -I./ -c indexio.c
 
 # Clean up generated object files and executables
 clean:
