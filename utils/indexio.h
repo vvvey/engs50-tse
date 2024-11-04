@@ -15,7 +15,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <unistd.h>
-#include <hashtable.h>
+#include <hash.h>
 #include <queue.h>
 
 /*
@@ -36,4 +36,4 @@ int32_t indexsave(hashtable_t *index_p, char *indexnm);
  *
  * returns: non-NULL for success; NULL otherwise
  */
-hashtable_t *indexload(char *char *indexnm);
+hashtable_t *indexload(char *indexnm);
