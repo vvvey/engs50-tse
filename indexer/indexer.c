@@ -39,14 +39,13 @@ bool compareDocID(doc_t *dp, int *doc_id) {
   return dp->doc_id == *doc_id;
 }
 
+void countQueueSum(doc_t *dp){
+  total_count += dp->count;
+}
+
 void countTotal(index_t *ip) {
   queue_t *doc_queue = ip->doc_queue;
-  doc_t *docp;
-
-  while ((docp = qget(doc_queue)) != NULL) {
-    total_count += docp->count;
-    free(docp);
-  }
+  qapply(doc_queue, (void (*)(void *))countQueueSum);
 }
 
 int NormalizeWord(char *sp) {
@@ -123,7 +122,7 @@ int main(int argc, char *argv[]) {
 	char *pgdir = argv[1];
 	char *idfl = argv[2];
 
-	int endid = 42; // ask josh--am i supposed to get the number of files for this?
+	int endid = 7; // ask josh--am i supposed to get the number of files for this?
 	hashtable_t *index_p = index_documents(endid, pgdir);
 
 	if (indexsave(index_p, idfl) != 0) {
