@@ -49,7 +49,7 @@ void countTotal(index_t *ip) {
 }
 
 int NormalizeWord(char *sp) {
-  if (strlen(sp) < 4) {
+  if (strlen(sp) < 3) {
     return -1;
   }
 
