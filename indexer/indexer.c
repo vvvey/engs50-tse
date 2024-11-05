@@ -31,6 +31,15 @@ typedef struct {
   int count; // word count in the document
 } doc_t;
 
+void freeIndex(void *ip) {
+	index_t* index = (index_t*)ip;
+	
+	qapply(index->doc_queue, free);
+	qclose(index->doc_queue);
+	free(index->word);
+	free(index);
+}
+
 bool compareWord(index_t *ip, char *word) {
   return strcmp(ip->word, word) == 0;
 }
@@ -105,7 +114,9 @@ hashtable_t* index_documents(int end_id, char *page_dir) {
 
 					free(word);
         }
-      }
+      } else {
+				free(word);
+			}
     }
 
 		webpage_delete(wp);
@@ -121,14 +132,23 @@ hashtable_t* index_documents(int end_id, char *page_dir) {
 int main(int argc, char *argv[]) {
 	char *pgdir = argv[1];
 	char *idfl = argv[2];
+	char path[1024];
+	
+	int endid = 1;
 
-	int endid = 7; // ask josh--am i supposed to get the number of files for this?
+	do {
+		sprintf(path, "%s/%d", pgdir, endid);
+    endid++;
+	} while (access(path, F_OK) != -1);
+
 	hashtable_t *index_p = index_documents(endid, pgdir);
 
 	if (indexsave(index_p, idfl) != 0) {
 		exit(EXIT_FAILURE);
 	}
 
+	happly(index_p, freeIndex);
 	hclose(index_p);
+	
 	exit(EXIT_SUCCESS);
 }
