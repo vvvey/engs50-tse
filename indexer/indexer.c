@@ -78,7 +78,7 @@ hashtable_t* index_documents(int end_id, char *page_dir) {
     webpage_t *wp = pageload(doc_id, page_dir);
 
 		if (!wp) {
-			printf("Page could not load");
+			printf("Page could not load \n");
 			continue;
 		}
 
