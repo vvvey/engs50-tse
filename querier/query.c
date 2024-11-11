@@ -1,6 +1,6 @@
 
 /* 
- * query.c --- 
+ * query.c ---
  * 
  * Author: Samuel R. Hirsh & Vuthy Vey
  * Created: 11-07-2024
@@ -124,7 +124,7 @@ void printRank(rank_t *rp) {
 
 int main() {
 	
-	hashtable_t *indexer_p = indexload("../indexer/ind");
+	hashtable_t *indexer_p = indexload("../indexer/test");
 	if (indexer_p == NULL) {
 		printf("Can't load indexer \n");
 		return -1;
@@ -139,77 +139,55 @@ int main() {
 		
 		char *delimiter = " \t";
 		char *word = strtok(query, delimiter); // delimiter space or tabs
+		char last_word[1024];
 	
 		int valid = 1;
-		int count = 0;
-		int capacity = 2;
-		char **word_arr = malloc(capacity * sizeof(char*)); // storing each query word
 		
+		queue_t *total_parsed = qopen();
+		queue_t *connected_words = qopen();
+
+		qput(total_parsed, connected_words);
+	
 		while (word != NULL) {
-			
 			if (NormalizeWord(word) == -1) {
 				valid = 0;
 				break;
 			}
 
-			if (strlen(word) < 3 || strcmp(word, "and") == 0) {
-				word = strtok(NULL, delimiter); // next token
+			if ((strcmp(last_word, "and") == 0 || strcmp(last_word, "or") == 0) && (strcmp(word, "and") == 0 || strcmp(word, "or") == 0)) {
+				valid = 0;
+				break;
+			}
+
+			if (strcmp(word, "or") == 0) {
+				qput(total_parsed, connected_words);
+				strcpy(last_word, word);
+				word = strtok(NULL, delimiter);
+				connected_words = qopen();
 				continue;
 			}
 
-			if (count == capacity) { // when count is at capacity --> increase capacity by multiple of 2
-            	capacity *= 2;
-            	char **temp = realloc(word_arr, capacity * sizeof(char*));
-            	
-				if (temp == NULL) {
-					fprintf(stderr, "Memory reallocation failed\n");
-					break;
-            	}
-            	word_arr = temp;
-        	}
+			if (strcmp(word, "and") == 0) {
+				strcpy(last_word, word);
+				word = strtok(NULL, delimiter);				
+				continue;
+			}
+			
+			qput(connected_words, word);
+			
+			strcpy(last_word, word);
+			word = strtok(NULL, delimiter);
+		}
 
-			word_arr[count] = malloc((strlen(word) + 1) * sizeof(char));
-			strcpy(word_arr[count], word); // Copy the word to array
-			count++;
-
-			word = strtok(NULL, delimiter); // next token in scanner
+		if ((strcmp(last_word, "and") == 0 || strcmp(last_word, "or") == 0)) {
+			valid = 0;
 		}
 	
 		if (valid == 0) {
 			printf("Invalid query!\n");
-			free(word_arr);
 			qclose(rank_queue);
 			continue;
 		}
-
-		/*
-		* Ranking documents based on query
-		*/
-		for (int i = 0; i < count; i++) {
-			char* w = word_arr[i];
-
-			if (strlen(w) < 3) { // Ignore the word
-				continue;
-			}
-
-			index_t *ip = hsearch(indexer_p,  (bool (*)(void*, const void*))compareWord, w, strlen(w));
-			if (ip == NULL) { // word in the query couldn't be found in indexer
-				printf("Not found: %s \n", w);
-			} else {
-				// for each doc_id in doc_queue, update its rank in rank_queue
-				queue_t *qp = ip->doc_queue;
-				qapply(qp, updateRank); 
-			}
-
-			free(w);  // Free each word
-    	}
-		
-		// Print result
-		qapply(rank_queue, (void (*)(void *))printRank);
-
-		qapply(rank_queue, freeRank);
-		qclose(rank_queue);
-		free(word_arr);
 	}
 
 	happly(indexer_p, freeIndex);
