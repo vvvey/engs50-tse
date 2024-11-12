@@ -1,4 +1,3 @@
-
 /* 
  * query.c ---
  * 
@@ -37,8 +36,8 @@ typedef struct {
 } rank_t;
 
 // Global Variables
-queue_t* rank_queue;
-char *pageDirectory;
+queue_t* rank_queue = NULL;
+char *pageDirectory = NULL;
 
 /*
 * @params sp, a string
@@ -69,7 +68,6 @@ bool compareDocIDRankQueue(rank_t *rp, int *doc_id) {
 
 void freeIndex(void *ip) {
 	index_t* index = (index_t*)ip;
-	
 	qapply(index->doc_queue, free);
 	qclose(index->doc_queue);
 	free(index->word);
@@ -78,7 +76,7 @@ void freeIndex(void *ip) {
 
 void freeRank(void *rp) {
 	rank_t* rank_p = (rank_t*)rp;
-	// free(rank_p->url);
+	free(rank_p->url);
 	free(rank_p);
 }
 
@@ -88,26 +86,31 @@ void calcAndRank(void *docp) {
 	int count = dp->count;
 	int doc_id = dp->doc_id;
 
-	// rank_queue is a global variable
-	
 	rank_t *rp = (rank_t*)qsearch(rank_queue, (bool (*)(void *, const void *))compareDocIDRankQueue, &doc_id);
 	if (rp == NULL) {
 		rp = (rank_t*)malloc(sizeof(rank_t));
+		if (rp == NULL) {
+			fprintf(stderr, "Memory allocation failed for rank_t\n");
+			return;
+		}
 		rp->doc_id = doc_id;
 		rp->rank = count;
-		
 
-		webpage_t *wp = pageload(doc_id, pageDirectory); // PAGES
+		webpage_t *wp = pageload(doc_id, pageDirectory);
 		if (wp == NULL) {
-			printf("yeah it can' be fetch");
+			fprintf(stderr, "Error: Could not load page with doc_id %d\n", doc_id);
+			free(rp); 
+			return;
 		}
 		char* url = webpage_getURL(wp);
-		
-		char* copyURL = malloc(strlen(url)*sizeof(char*));
-		strcpy(copyURL, url);
-		rp->url = copyURL;
-		
-		webpage_delete(wp);
+		rp->url = strdup(url);
+		webpage_delete(wp); 
+
+		if (rp->url == NULL) {
+			fprintf(stderr, "Memory allocation failed for URL\n");
+			free(rp); 
+			return;
+		}
 
 		qput(rank_queue, rp);
 	} else {
@@ -115,16 +118,14 @@ void calcAndRank(void *docp) {
 			rp->rank = count;
 		}
 	}
-
-	return;
 }
 
 void printRank(rank_t *rp) {
 	printf("rank: %d doc: %d url: %s\n", rp->rank, rp->doc_id, rp->url);
 }
 
-void usage() {
-	printf("usage");
+void usage(char *prog_name) {
+	printf("Usage: %s <pageDirectory> <indexFile> [-q]\n", prog_name);
 }
 
 int main(int argc, char *argv[]) {
@@ -134,7 +135,6 @@ int main(int argc, char *argv[]) {
  	}
 
  	int quiet_mode = 0;
-	
  	if (argc == 4 && strcmp(argv[3], "-q") == 0) {
  		quiet_mode = 1;
  	}
@@ -143,14 +143,13 @@ int main(int argc, char *argv[]) {
   	char* indexFile = argv[2];
 
   	if (access(pageDirectory, F_OK) != 0) {
-    	printf("Error: %s does not exist.\n", pageDirectory);
+    	fprintf(stderr, "Error: %s does not exist.\n", pageDirectory);
     	return -1;
   	}
 	
 	hashtable_t *indexer_p = indexload(indexFile);
-
 	if (indexer_p == NULL) {
-		printf("Can't load indexer \n");
+		fprintf(stderr, "Can't load indexer\n");
 		return -1;
 	}
 	
@@ -162,21 +161,21 @@ int main(int argc, char *argv[]) {
 		if (scanf(" %[^\n]", query) == EOF) { break; }
 		
 		char *delimiter = " \t";
-		char *word = strtok(query, delimiter); // delimiter space or tabs
-		char last_word[1024];
+		char *word = strtok(query, delimiter);
+		char last_word[1024] = "";
 	
 		int valid = 1;
-		
 		queue_t *total_parsed = qopen();
 		queue_t *connected_words = qopen();
 	
 		while (word != NULL) {
-			if (NormalizeWord(word) == -1) { // check for non alphabet, and then lowercase each character
+			if (NormalizeWord(word) == -1) {
 				valid = 0;
 				break;
 			}
 
-			if ((strcmp(last_word, "and") == 0 || strcmp(last_word, "or") == 0) && (strcmp(word, "and") == 0 || strcmp(word, "or") == 0)) {
+			if ((strcmp(last_word, "and") == 0 || strcmp(last_word, "or") == 0) && 
+			    (strcmp(word, "and") == 0 || strcmp(word, "or") == 0)) {
 				valid = 0;
 				break;
 			}
@@ -195,7 +194,7 @@ int main(int argc, char *argv[]) {
 				continue;
 			}
 		
-			qput(connected_words, word);
+			qput(connected_words, strdup(word));
 			
 			strcpy(last_word, word);
 			word = strtok(NULL, delimiter);
@@ -207,63 +206,52 @@ int main(int argc, char *argv[]) {
 
 		qput(total_parsed, connected_words);
 		
-	
-		if (valid == 0) {
+		if (!valid) {
 			printf("Invalid query!\n");
 			qclose(rank_queue);
+			qapply(total_parsed, qclose);
+			qclose(total_parsed);
 			continue;
 		}
 
 		queue_t *andwords = qget(total_parsed);
-		queue_t *or_queue = qopen(); // 
+		queue_t *or_queue = qopen();
 
-		rank_queue = qopen(); // from global variable
+		rank_queue = qopen();
 
-		/*
-		* Perform AND Query
-		* Store result (queue of rank_t) in or_queue
-		* or queue format: Queue(Queue(Rank, Rank, Rank), Queue(Rank, Rank))
-		* Use rank_queue as temporarity queue 
-		*/
 		while(andwords != NULL) {
 			char *word = qget(andwords);
-
 			while(word != NULL) {
 				printf("%s ", word);
 				index_t *ip = hsearch(indexer_p,  (bool (*)(void*, const void*))compareWord, word, strlen(word));
-				if (ip == NULL) { // when a word not found in AND query, rank becomes 0
+				if (ip == NULL) {
 					printf("Not found: %s \n", word);
-					
-					// Need to be implemented
-
 				} else {
-					// for each doc_id in doc_queue, update its rank in rank_queue
 					queue_t *qp = ip->doc_queue;
-					qapply(qp, calcAndRank); 
+					qapply(qp, calcAndRank);
 				}
+				free(word);
 				word = qget(andwords);
 			}
+			qclose(andwords);
 			qput(or_queue, rank_queue);
-			rank_queue = qopen(); // rank_queue is global variable
-
-
-			printf("\n");
+			rank_queue = qopen();
 			andwords = qget(total_parsed);
 		}
-
-		/*
-		* Perform OR Ranking
-		* Store Result in rank_result
-		*/
-		// hashtable_t rank_result = hopen(100);
 
 		while(qget(or_queue) != NULL) {
 			printf("a");
 		}
 
+		qapply(rank_queue, freeRank);
+		qclose(rank_queue);
+
+		qapply(total_parsed, qclose);
+		qclose(total_parsed);
+		qclose(or_queue);
 	}
 
 	happly(indexer_p, freeIndex);
 	hclose(indexer_p);
+	return 0;
 }
-
