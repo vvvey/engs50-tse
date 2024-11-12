@@ -69,42 +69,60 @@ void freeRank(void *rp) {
     free(rank_p);
 }
 
-void calcAndRank(void *docp) {
-    doc_t *dp = (doc_t*)docp;
-    int count = dp->count;
+void addFirstWord(void *docp ) {
+	doc_t *dp = (doc_t*)docp;
+	int count = dp->count;
     int doc_id = dp->doc_id;
 
-    rank_t *rp = (rank_t*)qsearch(rank_queue, (bool (*)(void *, const void *))compareDocIDRankQueue, &doc_id);
-    if (rp == NULL) {
-        rp = (rank_t*)malloc(sizeof(rank_t));
-        rp->doc_id = doc_id;
-        rp->rank = count;
+	rank_t *rp = (rank_t*)malloc(sizeof(rank_t));
+	rp->doc_id = doc_id;
+	rp->rank = count;
 
-        webpage_t *wp = pageload(doc_id, pageDirectory);
-        if (wp == NULL) {
-            printf("Page could not be fetched\n");
-        }
-        char* url = webpage_getURL(wp);
-        
-        char* copyURL = malloc(strlen(url)*sizeof(char*));
-        strcpy(copyURL, url);
-        rp->url = copyURL;
-        
-        webpage_delete(wp);
+	webpage_t *wp = pageload(doc_id, pageDirectory);
+	if (wp == NULL) {
+		printf("Page could not be fetched\n");
+	}
+	char* url = webpage_getURL(wp);
+	
+	char* copyURL = malloc(strlen(url)*sizeof(char*));
+	strcpy(copyURL, url);
+	rp->url = copyURL;
+	
+	webpage_delete(wp);
 
-        qput(rank_queue, rp);
-    } else {
-        if (rp->rank > count) {
-            rp->rank = count;
-        }
-    }
+	qput(rank_queue, rp);
 }
 
-void printRank(rank_t *rp) {
+void compIntersection(queue_t *qp) {
+
+	queue_t *temp = qopen();
+    rank_t *rp = qget(rank_queue);
+	while (rp != NULL) {
+		int doc_id = rp->doc_id;
+		doc_t *dp = qsearch(qp, (bool (*)(void *, const void *))compareDocID, &doc_id);
+		if (dp != NULL) {
+			if (dp->count < rp->rank) {
+				rp->rank = dp->count;
+			}
+			qput(temp, rp);
+		} else {
+			free(rp->url);
+			free(rp);
+		}
+		rp = qget(rank_queue);
+	}
+	qapply(rank_queue, freeRank);
+	qclose(rank_queue);
+	rank_queue = temp;
+}
+
+void printRank(void *rank) {
+	rank_t *rp = (rank_t*)rank;
     printf("rank: %d doc: %d url: %s\n", rp->rank, rp->doc_id, rp->url);
 }
 
-void saveRank(rank_t *rp) {
+void saveRank(void *rank) {
+	rank_t *rp = (rank_t*)rank;
     if (outFile != NULL) {
         fprintf(outFile, "rank: %d doc: %d url: %s\n", rp->rank, rp->doc_id, rp->url);
     }
@@ -175,14 +193,21 @@ void processQuery(char *query, hashtable_t *indexer_p) {
     while (andwords != NULL) {
         char *word = qget(andwords);
         int allWordsPass = 1;
+		int firstWord = 1;
         while (word != NULL) {
             index_t *ip = hsearch(indexer_p, (bool (*)(void*, const void*))compareWord, word, strlen(word));
             if (ip == NULL) {
                 allWordsPass = 0;
                 break;
             } else {
-                queue_t *qp = ip->doc_queue;
-                qapply(qp, calcAndRank); 
+				queue_t *qp = ip->doc_queue;
+				if (firstWord == 1) {
+					qapply(qp, addFirstWord);
+					firstWord = 0; 
+				} else {
+					compIntersection(qp);
+				}
+                
             }
             word = qget(andwords);
         }
