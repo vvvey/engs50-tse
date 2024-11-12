@@ -66,6 +66,7 @@ void freeIndex(void *ip) {
 
 void freeRank(void *rp) {
     rank_t* rank_p = (rank_t*)rp;
+	free(rank_p->url);
     free(rank_p);
 }
 
@@ -139,7 +140,6 @@ void usage() {
 }
 
 void processQuery(char *query, hashtable_t *indexer_p) {
-    rank_queue = qopen();
     char *delimiter = " \t";
     char *word = strtok(query, delimiter);
     char last_word[1024];
@@ -165,6 +165,12 @@ void processQuery(char *query, hashtable_t *indexer_p) {
             connected_words = qopen();
             continue;
         }
+
+		if (strlen(word) < 3) {
+			word = strtok(NULL, delimiter);
+            continue;
+		} 
+
         if (strcmp(word, "and") == 0) {
             strcpy(last_word, word);
             word = strtok(NULL, delimiter);
@@ -180,17 +186,28 @@ void processQuery(char *query, hashtable_t *indexer_p) {
     qput(total_parsed, connected_words);
 
     if (valid == 0) {
-        printf("Invalid query!\n");
-        qclose(rank_queue);
+		printf("Invalid query!\n");
+		// free all the queues
+		// qclose(connected_words);
+		qapply(total_parsed, qclose);
+		qclose(total_parsed);
+		
+        
         return;
     }
 
+
+	/*
+	* AND Query Ranking
+	*/
     queue_t *andwords = qget(total_parsed);
     queue_t *or_queue = qopen();
 
-    rank_queue = qopen();
+    
 
     while (andwords != NULL) {
+		rank_queue = qopen();
+
         char *word = qget(andwords);
         int allWordsPass = 1;
 		int firstWord = 1;
@@ -213,13 +230,20 @@ void processQuery(char *query, hashtable_t *indexer_p) {
         }
         if (allWordsPass == 1) {
             qput(or_queue, rank_queue);
-            rank_queue = qopen();
-        }
+        } else {
+			qapply(rank_queue, freeRank);
+			qclose(rank_queue);
+		}
+		qclose(andwords);
         andwords = qget(total_parsed);
     }
-
+	qclose(total_parsed);
+	
     hashtable_t *rank_result = hopen(100);
 
+	/*
+	* OR Query Ranking
+	*/
     queue_t *tmp = qget(or_queue);
     while (tmp != NULL) {
         rank_t *rp = qget(tmp);
@@ -235,11 +259,15 @@ void processQuery(char *query, hashtable_t *indexer_p) {
                 hput(rank_result, rp, doc_idstr, strlen(doc_idstr));
             } else {
                 r_tmp->rank = r_tmp->rank + rank;
+				free(rp->url); // a copy is already instead rank_result, so this must be free
+				free(rp);
             }
             rp = qget(tmp);
         }
+		qclose(tmp);
         tmp = qget(or_queue);
     }
+	qclose(or_queue);
 
     if (quiet_mode) {
         happly(rank_result, saveRank);
@@ -248,6 +276,8 @@ void processQuery(char *query, hashtable_t *indexer_p) {
         happly(rank_result, printRank);
     }
 
+	happly(rank_result, freeRank);
+	hclose(rank_result);
 }
 
 int main(int argc, char *argv[]) {

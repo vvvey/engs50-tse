@@ -105,8 +105,8 @@ hashtable_t *indexload(char *indexnm) {
     }
 
     hput(index_p, ip, word_copy, strlen(word_copy));
-
   } 
+  free(word);
   fclose(fl);
   return index_p;
 }
