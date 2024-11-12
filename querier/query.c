@@ -38,6 +38,7 @@ typedef struct {
 
 // Global Variables
 queue_t* rank_queue;
+char *pageDirectory;
 
 /*
 * @params sp, a string
@@ -96,7 +97,7 @@ void calcAndRank(void *docp) {
 		rp->rank = count;
 		
 
-		webpage_t *wp = pageload(doc_id, "../crawler/pages");
+		webpage_t *wp = pageload(doc_id, pageDirectory); // PAGES
 		if (wp == NULL) {
 			printf("yeah it can' be fetch");
 		}
@@ -122,9 +123,32 @@ void printRank(rank_t *rp) {
 	printf("rank: %d doc: %d url: %s\n", rp->rank, rp->doc_id, rp->url);
 }
 
-int main() {
+void usage() {
+	printf("usage");
+}
+
+int main(int argc, char *argv[]) {
+ 	if (argc < 3 || argc > 4) {
+  		usage(argv[0]);
+  		return -1;
+ 	}
+
+ 	int quiet_mode = 0;
 	
-	hashtable_t *indexer_p = indexload("../indexer/ind");
+ 	if (argc == 4 && strcmp(argv[3], "-q") == 0) {
+ 		quiet_mode = 1;
+ 	}
+
+  	pageDirectory = argv[1];
+  	char* indexFile = argv[2];
+
+  	if (access(pageDirectory, F_OK) != 0) {
+    	printf("Error: %s does not exist.\n", pageDirectory);
+    	return -1;
+  	}
+	
+	hashtable_t *indexer_p = indexload(indexFile);
+
 	if (indexer_p == NULL) {
 		printf("Can't load indexer \n");
 		return -1;
@@ -231,7 +255,7 @@ int main() {
 		* Perform OR Ranking
 		* Store Result in rank_result
 		*/
-		hashtable_t rank_result = hopen(100);
+		// hashtable_t rank_result = hopen(100);
 
 		while(qget(or_queue) != NULL) {
 			printf("a");
