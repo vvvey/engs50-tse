@@ -81,7 +81,7 @@ void freeRank(void *rp) {
 	free(rank_p);
 }
 
-void updateRank(void *docp) {
+void calcAndRank(void *docp) {
 	doc_t *dp = (doc_t*)docp;
 	
 	int count = dp->count;
@@ -124,7 +124,7 @@ void printRank(rank_t *rp) {
 
 int main() {
 	
-	hashtable_t *indexer_p = indexload("../indexer/test");
+	hashtable_t *indexer_p = indexload("../indexer/ind");
 	if (indexer_p == NULL) {
 		printf("Can't load indexer \n");
 		return -1;
@@ -145,11 +145,9 @@ int main() {
 		
 		queue_t *total_parsed = qopen();
 		queue_t *connected_words = qopen();
-
-		qput(total_parsed, connected_words);
 	
 		while (word != NULL) {
-			if (NormalizeWord(word) == -1) {
+			if (NormalizeWord(word) == -1) { // check for non alphabet, and then lowercase each character
 				valid = 0;
 				break;
 			}
@@ -172,7 +170,7 @@ int main() {
 				word = strtok(NULL, delimiter);				
 				continue;
 			}
-			
+		
 			qput(connected_words, word);
 			
 			strcpy(last_word, word);
@@ -182,12 +180,63 @@ int main() {
 		if ((strcmp(last_word, "and") == 0 || strcmp(last_word, "or") == 0)) {
 			valid = 0;
 		}
+
+		qput(total_parsed, connected_words);
+		
 	
 		if (valid == 0) {
 			printf("Invalid query!\n");
 			qclose(rank_queue);
 			continue;
 		}
+
+		queue_t *andwords = qget(total_parsed);
+		queue_t *or_queue = qopen(); // 
+
+		rank_queue = qopen(); // from global variable
+
+		/*
+		* Perform AND Query
+		* Store result (queue of rank_t) in or_queue
+		* or queue format: Queue(Queue(Rank, Rank, Rank), Queue(Rank, Rank))
+		* Use rank_queue as temporarity queue 
+		*/
+		while(andwords != NULL) {
+			char *word = qget(andwords);
+
+			while(word != NULL) {
+				printf("%s ", word);
+				index_t *ip = hsearch(indexer_p,  (bool (*)(void*, const void*))compareWord, word, strlen(word));
+				if (ip == NULL) { // when a word not found in AND query, rank becomes 0
+					printf("Not found: %s \n", word);
+					
+					// Need to be implemented
+
+				} else {
+					// for each doc_id in doc_queue, update its rank in rank_queue
+					queue_t *qp = ip->doc_queue;
+					qapply(qp, calcAndRank); 
+				}
+				word = qget(andwords);
+			}
+			qput(or_queue, rank_queue);
+			rank_queue = qopen(); // rank_queue is global variable
+
+
+			printf("\n");
+			andwords = qget(total_parsed);
+		}
+
+		/*
+		* Perform OR Ranking
+		* Store Result in rank_result
+		*/
+		hashtable_t rank_result = hopen(100);
+
+		while(qget(or_queue) != NULL) {
+			printf("a");
+		}
+
 	}
 
 	happly(indexer_p, freeIndex);
