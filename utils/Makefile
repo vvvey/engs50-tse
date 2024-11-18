@@ -1,6 +1,6 @@
 CFLAGS=-Wall -pedantic -std=c11 -g
 
-OFILES=queue.o hash.o webpage.o pageio.o indexio.o
+OFILES=queue.o hash.o webpage.o pageio.o indexio.o lqueue.o
 
 # Generate Object Files
 all: $(OFILES)
@@ -8,6 +8,9 @@ all: $(OFILES)
 	
 queue.o:	queue.c queue.h
 	gcc $(CFLAGS) -I./ -c queue.c
+
+lqueue.o:	lqueue.c lqueue.h
+	gcc $(CFLAGS) -I./ -lpthread -c lqueue.c
 
 hash.o: hash.c hash.h
 	gcc $(CFLAGS) -I./  -c hash.c
